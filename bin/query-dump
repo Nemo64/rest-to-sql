@@ -1,0 +1,20 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/../vendor/autoload.php';
+
+$restToSql = \Nemo64\RestToSql\RestToSql::fromEnvironment();
+
+parse_str($argv[2] ?? '', $query);
+$queryBuilder = $restToSql->createSelectQueryBuilder($argv[1], $query);
+if ($queryBuilder === null) {
+    echo 'No query builder found for path ' . $argv[1] . PHP_EOL;
+    exit(1);
+}
+
+$formatter = new \Doctrine\SqlFormatter\SqlFormatter();
+echo $formatter->format($queryBuilder->getSQL()), PHP_EOL;
+
+foreach ($queryBuilder->getParameters() as $key => $parameter) {
+    echo ':', $key, ' = ', json_encode($parameter, JSON_THROW_ON_ERROR), PHP_EOL;
+}

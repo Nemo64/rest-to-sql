@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+php -S localhost:3000 "$0-runtime.php"

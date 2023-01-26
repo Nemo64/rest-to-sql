@@ -1,0 +1,16 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/../vendor/autoload.php';
+
+$restToSql = \Nemo64\RestToSql\RestToSql::fromEnvironment();
+
+$schema = new \Doctrine\DBAL\Schema\Schema();
+$restToSql->applySqlTableSchema($schema);
+
+$formatter = new \Doctrine\SqlFormatter\SqlFormatter();
+foreach ($schema->toSql($restToSql->connection->getDatabasePlatform()) as $query) {
+    // add newlines to field definitions
+    echo $formatter->format($query . ';'), PHP_EOL;
+}
+

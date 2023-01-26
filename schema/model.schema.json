@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalItems": false,
+  "additionalProperties": {
+    "oneOf": [
+      {"$ref": "#/definitions/table"},
+      {"$ref": "#/definitions/view"}
+    ]
+  },
+  "definitions": {
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "access", "fields"],
+      "properties": {
+        "type": {"const": "table"},
+        "access": {"$ref": "#/definitions/access"},
+        "fields": {
+          "type": "object",
+          "additionalItems": {"$ref": "#/definitions/item"}
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "access", "from", "groupBy", "fields"],
+      "properties": {
+        "type": {"const": "aggregation"},
+        "access": {"$ref": "#/definitions/access"},
+        "from": {"type": "string"},
+        "groupBy": {"type": "string"},
+        "where": {"type": "string"},
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": {
+              "type": {"enum": ["string", "number", "boolean"]},
+              "select": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "item": {
+      "oneOf": [
+        {"$ref": "#/definitions/table"},
+        {"$ref": "#/definitions/view"},
+        {"$ref": "#/definitions/item_boolean"},
+        {"$ref": "#/definitions/item_integer"},
+        {"$ref": "#/definitions/item_number"},
+        {"$ref": "#/definitions/item_string"}
+      ]
+    },
+    "item_boolean": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "access"],
+      "properties": {
+        "type": {"const": "boolean"},
+        "access": {"$ref": "#/definitions/access"},
+        "default": {"type": "boolean"},
+        "nullabel": {"type": "boolean", "default": false}
+      }
+    },
+    "item_integer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "access"],
+      "properties": {
+        "type": {"const": "integer"},
+        "access": {"$ref": "#/definitions/access"},
+        "default": {"type": "number"},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"},
+        "nullabel": {"type": "boolean", "default": false}
+      }
+    },
+    "item_number": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "access"],
+      "properties": {
+        "type": {"const": "number"},
+        "access": {"$ref": "#/definitions/access"},
+        "default": {"type": "number"},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"},
+        "nullabel": {"type": "boolean", "default": false}
+      }
+    },
+    "item_string": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "access"],
+      "properties": {
+        "type": {"const": "string"},
+        "access": {"$ref": "#/definitions/access"},
+        "default": {"type": "string"},
+        "minLength": {"type": "integer", "minimum": 0, "default": 1},
+        "maxLength": {"type": "integer", "minimum": 0, "default": 50},
+        "nullabel": {"type": "boolean", "default": false}
+      }
+    },
+    "access": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {"type": "boolean"},
+          {"type": "string"},
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "select": {"anyOf": [{"type": "boolean"}, {"type": "string"}]},
+              "insert": {"anyOf": [{"type": "boolean"}, {"type": "string"}]},
+              "update": {"anyOf": [{"type": "boolean"}, {"type": "string"}]},
+              "delete": {"anyOf": [{"type": "boolean"}, {"type": "string"}]}
+            }
+          }
+        ]
+      }
+    }
+  }
+}

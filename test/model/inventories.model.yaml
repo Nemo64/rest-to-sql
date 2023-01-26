@@ -1,0 +1,62 @@
+inventories:
+  type: table
+  access:
+    ROLE_ADMIN: true
+    ROLE_USER: { select: this.public = 1 }
+  fields:
+    name: { type: string }
+    description: { type: string, nullable: true }
+    status: { type: string, enum: [ draft, active ], default: draft, searchable: true }
+    public: { type: boolean, select: this.status = 'active' }
+    allocations:
+      type: table
+      access:
+        ROLE_ADMIN: true
+      fields:
+        description: { type: string, nullable: true }
+        itemName: { type: string }
+        quantity: { type: integer }
+#    items:
+#      type: view
+#      from: inventories_allocations
+#      where: this.inventories = parent.id # todo it must be clear that this is the parent condition
+#      groupBy: this.itemName
+#      fields:
+#        itemName: { type: string }
+#        quantity: { type: integer, select: SUM(this.quantity) }
+
+inventories_totals:
+  type: view
+  from: inventories_allocations
+  groupBy: this.itemName
+  access:
+    ROLE_ADMIN: true
+  fields:
+    itemName: { type: string }
+    quantity: { type: integer, select: SUM(this.quantity) }
+    changes: { type: integer, select: COUNT(this.id) }
+
+users:
+  type: table
+  access:
+    ROLE_ADMIN: true
+    ROLE_USER: { select: this.id = :user_id }
+  fields:
+    status:
+      type: string
+      enum: [ invited, enabled, disabled ]
+      default: invited
+      searchable: true
+    enabled:
+      type: boolean
+      select: this.status = 'enabled'
+    username:
+      type: string
+      select: (SELECT email FROM users_emails WHERE users_emails.users = this.id AND users_emails.primary = 1)
+      searchable: true
+    emails:
+      type: table
+      fields:
+        email: { type: string, unique: true }
+        verified: { type: boolean }
+        primary: { type: boolean }

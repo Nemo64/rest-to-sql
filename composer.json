@@ -1,0 +1,35 @@
+{
+    "name": "nemo64/rest-to-sql",
+    "description": "Define a Rest Api using Configuration directly onto an SQL Database",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Marco Pfeiffer",
+            "email": "git@marco.zone"
+        }
+    ],
+    "config": {
+        "sort-packages": true
+    },
+    "require": {
+        "php": "^8.2",
+        "doctrine/dbal": "^3.5",
+        "doctrine/sql-formatter": "^1.1",
+        "guzzlehttp/psr7": "^2.4",
+        "psr/http-server-handler": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "symfony/yaml": "^6.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nemo64\\RestToSql\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Nemo64\\RestToSql\\Test\\": "test/"
+        }
+    }
+}
