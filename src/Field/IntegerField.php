@@ -2,23 +2,22 @@
 
 namespace Nemo64\RestToSql\Field;
 
-use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
 
 readonly class IntegerField extends AbstractSingleField
 {
+    public ?int $default;
+    public ?int $example;
     public int $minimum;
     public int $maximum;
-    public ?int $default;
-    public bool $searchable;
 
     public function __construct(array $data)
     {
         parent::__construct($data);
+        $this->default = $data['default'] ?? null;
+        $this->example = $data['example'] ?? null;
         $this->minimum = $data['minimum'] ?? -2147483648;
         $this->maximum = $data['maximum'] ?? 2147483647;
-        $this->default = $data['default'] ?? null;
-        $this->searchable = $data['searchable'] ?? false;
     }
 
     public static function getTypeName(): string
@@ -45,43 +44,30 @@ readonly class IntegerField extends AbstractSingleField
 
     public function getOpenApiFieldSchema(): array
     {
-        $result = parent::getOpenApiFieldSchema();
-        $result['type'] = 'integer';
+        $schema = parent::getOpenApiFieldSchema();
+        $schema['type'] = 'integer';
+        $schema['format'] = match ($this->getDoctrineType()) {
+            Types::BIGINT => 'int64',
+            default => 'int32',
+            // there is no int16 in the openapi spec
+        };
 
-        $result['minimum'] = $this->minimum;
-        $result['maximum'] = $this->maximum;
+        if ($this->minimum !== -2147483648 || empty($schema['readOnly'])) {
+            $schema['minimum'] = $this->minimum;
+        }
+
+        if ($this->maximum !== 2147483647 || empty($schema['readOnly'])) {
+            $schema['maximum'] = $this->maximum;
+        }
 
         if ($this->default !== null) {
-            $result['default'] = $this->default;
+            $schema['default'] = $this->default;
         }
 
-        return $result;
-    }
-
-    public function getOpenApiFilterParameters(string $propertyPath): array
-    {
-        $result = [];
-
-        $openApiFieldSchema = $this->getOpenApiFieldSchema();
-        unset($openApiFieldSchema['readOnly'], $openApiFieldSchema['writeOnly']);
-
-        if ($this->searchable) {
-            $result[] = [
-                'name' => $propertyPath,
-                'in' => 'query',
-                'required' => false,
-                'schema' => $openApiFieldSchema,
-            ];
+        if ($this->example !== null) {
+            $schema['example'] = $this->example;
         }
 
-        return $result;
-    }
-
-    public function applyFilters(QueryBuilder $queryBuilder, string $alias, string $propertyPath, array $query): void
-    {
-        if ($this->searchable && isset($query[$propertyPath])) {
-            $queryBuilder->andWhere("$alias.$this->name = :$propertyPath");
-            $queryBuilder->setParameter($propertyPath, $query[$propertyPath], $this->getDoctrineType());
-        }
+        return $schema;
     }
 }

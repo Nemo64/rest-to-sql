@@ -4,6 +4,7 @@ namespace Nemo64\RestToSql\Model;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\Types;
@@ -99,16 +100,26 @@ readonly class TableModel extends AbstractModel
                 if (isset($oldRecord[$this->idField])) {
                     $finalIds[] = $id = $oldRecord[$this->idField];
                     if (count($fields) > 0) {
-                        $connection->update($this->getTableName(), $fields, [$this->idField => $id]);
+                        $connection->update(
+                            table: $this->getTableName(),
+                            data: array_combine(array_keys($fields), array_column($fields, 0)),
+                            criteria: [$this->idField => $id],
+                            types: array_combine(array_keys($fields), array_column($fields, 1)),
+                        );
                     }
 
                     $this->executeSubUpdates($connection, $id, $oldRecord, $newRecord);
                 } else {
                     if ($parentId !== null) {
-                        $fields[$this->parentField] = $parentId;
+                        $fields[$this->parentField] = [$parentId, ParameterType::INTEGER];
                     }
 
-                    $connection->insert($this->getTableName(), $fields);
+                    $connection->insert(
+                        table: $this->getTableName(),
+                        data: array_combine(array_keys($fields), array_column($fields, 0)),
+                        types: array_combine(array_keys($fields), array_column($fields, 1)),
+                    );
+
                     $finalIds[] = $id = $connection->lastInsertId();
                     $this->executeSubUpdates($connection, $id, null, $newRecord);
                 }
@@ -128,6 +139,7 @@ readonly class TableModel extends AbstractModel
     private function executeSubUpdates(Connection $connection, mixed $parentId, ?array $oldRecord, ?array $newRecord): void
     {
         foreach ($this->getFields() as $key => $field) {
+            // TODO checking for ModelInterface breaks recursion and will prevent embeddable types
             if (!$field instanceof ModelInterface) {
                 continue;
             }

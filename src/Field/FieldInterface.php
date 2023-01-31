@@ -23,11 +23,19 @@ interface FieldInterface
     public function getOpenApiFieldSchema(): array;
 
     /**
+     * @param string $propertyPath The property path to the field. This is used to generate the filter parameters.
      * @return array
      * @see https://swagger.io/specification/#schema-object
      */
     public function getOpenApiFilterParameters(string $propertyPath): array;
 
+    /**
+     * @param QueryBuilder $queryBuilder The query builder that is used to build the query.
+     * @param string $alias The alias of the table that is used in the query.
+     * @param string $propertyPath The property path to the field. This is used to generate the filter parameters.
+     * @param array $query The raw query parameters from the request.
+     * @return void
+     */
     public function applyFilters(QueryBuilder $queryBuilder, string $alias, string $propertyPath, array $query): void;
 
     /**
@@ -36,9 +44,16 @@ interface FieldInterface
      *
      * @param Connection $connection
      * @param string $alias
-     * @return string
+     * @return string|null
      */
-    public function getSelectExpression(Connection $connection, string $alias): string;
+    public function getSelectExpression(Connection $connection, string $alias): ?string;
 
+    /**
+     * @param Connection $connection
+     * @param mixed $old
+     * @param mixed $new
+     * @return array [property => [value, dbal-type], ...]
+     * @todo there should be direct support for update queries here
+     */
     public function getUpdateValues(Connection $connection, mixed $old, mixed $new): array;
 }

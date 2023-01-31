@@ -123,6 +123,7 @@ class RestToSql implements RequestHandlerInterface
                         ],
                         '400' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
+                        '404' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '422' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                     ],
                 ];
@@ -147,6 +148,7 @@ class RestToSql implements RequestHandlerInterface
                         ],
                         '400' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
+                        '404' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '422' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                     ],
                 ];
@@ -167,6 +169,7 @@ class RestToSql implements RequestHandlerInterface
                         '204' => [],
                         '400' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
+                        '404' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '422' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                     ],
                 ];

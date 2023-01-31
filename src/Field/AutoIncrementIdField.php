@@ -9,7 +9,7 @@ use Doctrine\DBAL\Types\Types;
 
 readonly class AutoIncrementIdField implements FieldInterface
 {
-    public string $name;
+    private string $name;
 
     public function __construct(array $data)
     {
@@ -29,15 +29,16 @@ readonly class AutoIncrementIdField implements FieldInterface
     public function applySqlFieldSchema(Table $table): void
     {
         $table->addColumn(
-            name: $this->name,
+            name: $this->getFieldName(),
             typeName: Types::INTEGER,
             options: ['unsigned' => true, 'autoincrement' => true],
         );
+        $table->setPrimaryKey([$this->getFieldName()]);
     }
 
     public function getSelectExpression(Connection $connection, string $alias): string
     {
-        return "$alias.$this->name";
+        return "$alias.{$this->getFieldName()}";
     }
 
     public function getUpdateValues(Connection $connection, mixed $old, mixed $new): array
@@ -49,6 +50,7 @@ readonly class AutoIncrementIdField implements FieldInterface
     {
         return [
             'type' => 'integer',
+            'format' => 'int32',
             'readOnly' => true,
         ];
     }
@@ -58,10 +60,10 @@ readonly class AutoIncrementIdField implements FieldInterface
         $result = [];
 
         $result[] = [
-            'name' => $propertyPath,
+            'name' => $propertyPath . '[]',
             'in' => 'query',
             'required' => false,
-            'schema' => ['type' => 'integer'],
+            'schema' => ['type' => 'array', 'items' => ['type' => 'integer', 'format' => 'int32']],
         ];
 
         return $result;
@@ -69,9 +71,17 @@ readonly class AutoIncrementIdField implements FieldInterface
 
     public function applyFilters(QueryBuilder $queryBuilder, string $alias, string $propertyPath, array $query): void
     {
-        if (isset($query[$propertyPath])) {
-            $queryBuilder->andWhere("$alias.$this->name = :$propertyPath");
-            $queryBuilder->setParameter($propertyPath, $query[$propertyPath], Types::INTEGER);
+        if (!isset($query[$propertyPath])) {
+            return;
+        }
+
+        $values = array_filter((array)$query[$propertyPath], 'is_numeric');
+        if (count($values) === 1) {
+            $queryBuilder->andWhere("$alias.{$this->getFieldName()} = :$propertyPath");
+            $queryBuilder->setParameter($propertyPath, reset($values), Types::INTEGER);
+        } else if (count($values) > 1) {
+            $queryBuilder->andWhere("$alias.{$this->getFieldName()} IN (:$propertyPath)");
+            $queryBuilder->setParameter($propertyPath, $values, Connection::PARAM_INT_ARRAY);
         }
     }
 }

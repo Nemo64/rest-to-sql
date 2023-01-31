@@ -31,6 +31,7 @@ class Types
 
 Types::registerType(Field\AutoIncrementIdField::class);
 Types::registerType(Field\BooleanField::class);
+Types::registerType(Field\DateTimeField::class);
 Types::registerType(Field\IntegerField::class);
 Types::registerType(Field\StringField::class);
 

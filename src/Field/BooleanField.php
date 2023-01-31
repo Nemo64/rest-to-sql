@@ -3,6 +3,7 @@
 namespace Nemo64\RestToSql\Field;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Platforms\SqlitePlatform;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
@@ -10,13 +11,11 @@ use Doctrine\DBAL\Types\Types;
 readonly class BooleanField extends AbstractSingleField
 {
     public ?bool $default;
-    public bool $searchable;
 
     public function __construct(array $data)
     {
         parent::__construct($data);
         $this->default = $data['default'] ?? null;
-        $this->searchable = $data['searchable'] ?? false;
     }
 
     public static function getTypeName(): string
@@ -36,15 +35,24 @@ readonly class BooleanField extends AbstractSingleField
         return $options;
     }
 
-    public function getSelectExpression(Connection $connection, string $alias): string
+    public function getSelectExpression(Connection $connection, string $alias): ?string
     {
         $condition = parent::getSelectExpression($connection, $alias);
+        if ($condition === null) {
+            return null;
+        }
 
+        // sqlite does not have a boolean type, so we have to convert it to json
         if ($connection->getDatabasePlatform() instanceof SqlitePlatform) {
             $condition = "CASE WHEN $condition THEN JSON('true') ELSE JSON('false') END";
         }
 
         return $condition;
+    }
+
+    protected function normalizeDatabaseValue(Connection $connection, mixed $value): bool
+    {
+        return (bool)$value;
     }
 
     public function getOpenApiFieldSchema(): array
@@ -59,35 +67,31 @@ readonly class BooleanField extends AbstractSingleField
         return $result;
     }
 
-    public function getOpenApiFilterParameters(string $propertyPath): array
+    protected function getOpenApiSearchParameters(string $propertyPath): array
     {
-        $result = [];
-
-        $openApiFieldSchema = $this->getOpenApiFieldSchema();
-        unset($openApiFieldSchema['readOnly'], $openApiFieldSchema['writeOnly']);
-
-        if ($this->searchable) {
-            $result[] = [
+        return [
+            [
                 'name' => $propertyPath,
                 'in' => 'query',
                 'required' => false,
-                'schema' => $openApiFieldSchema,
-            ];
-        }
-
-        return $result;
+                'schema' => ['type' => 'boolean'],
+            ],
+        ];
     }
 
-    public function applyFilters(QueryBuilder $queryBuilder, string $alias, string $propertyPath, array $query): void
+    protected function applySearchFilters(QueryBuilder $queryBuilder, string $selectExpression, string $propertyPath, array $query): void
     {
-        if ($this->searchable && isset($query[$propertyPath])) {
-            $value = match (strtolower($query[$propertyPath])) {
-                'true', '1', 'yes' => true,
-                'false', '0', 'no' => false,
-                default => throw new \InvalidArgumentException("The value {$query[$propertyPath]} is not a valid boolean value."),
-            };
-            $queryBuilder->andWhere("$alias.$this->name = :$this->name");
-            $queryBuilder->setParameter($this->name, $value, $this->getDoctrineType());
+        if (!isset($query[$propertyPath]) || !is_string($query[$propertyPath])) {
+            return;
         }
+
+        $value = match (strtolower($query[$propertyPath])) {
+            'true', '1', 'yes' => true,
+            'false', '0', 'no' => false,
+            default => throw new \InvalidArgumentException("The value {$query[$propertyPath]} is not a valid boolean value."),
+        };
+
+        $queryBuilder->andWhere("$selectExpression = :$propertyPath");
+        $queryBuilder->setParameter($propertyPath, $value, ParameterType::BOOLEAN);
     }
 }

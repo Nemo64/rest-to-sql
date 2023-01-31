@@ -5,7 +5,7 @@ inventories:
     ROLE_USER: { select: this.public = 1 }
   fields:
     name: { type: string }
-    description: { type: string, nullable: true }
+    description: { type: string, nullable: true, maxLength: 1000 }
     status: { type: string, enum: [ draft, active ], default: draft, searchable: true }
     public: { type: boolean, select: this.status = 'active' }
     allocations:
@@ -13,7 +13,7 @@ inventories:
       access:
         ROLE_ADMIN: true
       fields:
-        description: { type: string, nullable: true }
+        description: { type: string, nullable: true, maxLength: 1000 }
         itemName: { type: string }
         quantity: { type: integer }
 #    items:
@@ -33,30 +33,22 @@ inventories_totals:
     ROLE_ADMIN: true
   fields:
     itemName: { type: string }
-    quantity: { type: integer, select: SUM(this.quantity) }
+    quantity: { type: integer, select: SUM(this.quantity), searchable: true }
     changes: { type: integer, select: COUNT(this.id) }
 
 users:
   type: table
   access:
     ROLE_ADMIN: true
-    ROLE_USER: { select: this.id = :user_id }
+    ROLE_USER: this.id = :user_id
   fields:
-    status:
-      type: string
-      enum: [ invited, enabled, disabled ]
-      default: invited
-      searchable: true
-    enabled:
-      type: boolean
-      select: this.status = 'enabled'
-    username:
-      type: string
-      select: (SELECT email FROM users_emails WHERE users_emails.users = this.id AND users_emails.primary = 1)
-      searchable: true
+    status: { type: string, enum: [ invited, enabled, disabled ], default: invited, searchable: true }
+    enabled: { type: boolean, select: this.status = 'enabled' }
+    username: { type: string, select: (SELECT email FROM users_emails WHERE users_emails.parent = this.id AND users_emails.main = 1 LIMIT 1), searchable: true }
+    member_since: { type: date-time }
     emails:
       type: table
       fields:
         email: { type: string, unique: true }
         verified: { type: boolean }
-        primary: { type: boolean }
+        main: { type: boolean }
