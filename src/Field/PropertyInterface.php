@@ -5,14 +5,15 @@ namespace Nemo64\RestToSql\Field;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Table;
+use Nemo64\RestToSql\Options;
 
-interface FieldInterface
+interface PropertyInterface
 {
-    public function __construct(array $data);
+    public function __construct(Options $data);
 
     public static function getTypeName(): string;
 
-    public function getFieldName(): string;
+    public function getPropertyName(): string;
 
     public function applySqlFieldSchema(Table $table): void;
 

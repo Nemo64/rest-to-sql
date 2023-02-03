@@ -12,11 +12,11 @@
     "table": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "access", "fields"],
+      "required": ["type", "access", "properties"],
       "properties": {
         "type": {"const": "table"},
         "access": {"$ref": "#/definitions/access"},
-        "fields": {
+        "properties": {
           "type": "object",
           "additionalItems": {"$ref": "#/definitions/item"}
         }
@@ -25,14 +25,14 @@
     "view": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "access", "from", "groupBy", "fields"],
+      "required": ["type", "access", "from", "groupBy", "properties"],
       "properties": {
         "type": {"const": "aggregation"},
         "access": {"$ref": "#/definitions/access"},
         "from": {"type": "string"},
         "groupBy": {"type": "string"},
         "where": {"type": "string"},
-        "fields": {
+        "properties": {
           "type": "object",
           "additionalProperties": {
             "type": "object",

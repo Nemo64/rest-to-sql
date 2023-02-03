@@ -6,6 +6,7 @@ namespace Nemo64\RestToSql\Model;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Schema;
+use Nemo64\RestToSql\Options;
 
 readonly class ViewModel extends AbstractModel
 {
@@ -13,7 +14,7 @@ readonly class ViewModel extends AbstractModel
     public ?string $groupBy;
     public ?string $where;
 
-    public function __construct(array $data)
+    public function __construct(Options $data)
     {
         parent::__construct($data);
         $this->from = $data['from'];
@@ -33,8 +34,8 @@ readonly class ViewModel extends AbstractModel
     public function createSelectQueryBuilder(Connection $connection, array $query = []): QueryBuilder
     {
         $queryBuilder = $connection->createQueryBuilder();
-        $queryBuilder->from($this->applyPlaceholders($this->from), $this->getTableName());
-        $this->applyFilters($queryBuilder, $this->getTableName(), '', $query);
+        $queryBuilder->from($this->applyPlaceholders($this->from), $this->getModelName());
+        $this->applyFilters($queryBuilder, $this->getModelName(), '', $query);
         if ($this->groupBy !== null) {
             $queryBuilder->groupBy($this->applyPlaceholders($this->groupBy));
         }
@@ -43,10 +44,10 @@ readonly class ViewModel extends AbstractModel
         }
 
         $select = [];
-        foreach ($this->getFields() as $field) {
+        foreach ($this->getProperties() as $field) {
             /** @noinspection NullPointerExceptionInspection */
-            $select[] = $connection->getDatabasePlatform()->quoteStringLiteral($field->getFieldName());
-            $select[] = $field->getSelectExpression($connection, $this->getTableName());
+            $select[] = $connection->getDatabasePlatform()->quoteStringLiteral($field->getPropertyName());
+            $select[] = $field->getSelectExpression($connection, $this->getModelName());
         }
         $queryBuilder->select('JSON_OBJECT(' . implode(', ', $select) . ')');
 
@@ -63,11 +64,11 @@ readonly class ViewModel extends AbstractModel
         if ($this->parent !== null) {
             return preg_replace(
                 ['#\bthis\b#', '#\bparent\b#'],
-                [$this->getTableName(), $this->parent->getTableName()],
+                [$this->getModelName(), $this->parent->getModelName()],
                 $string
             );
         }
 
-        return preg_replace('#\bthis\b#', $this->getTableName(), $string);
+        return preg_replace('#\bthis\b#', $this->getModelName(), $string);
     }
 }

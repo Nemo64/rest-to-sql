@@ -5,10 +5,11 @@ namespace Nemo64\RestToSql\Field;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Table;
+use Nemo64\RestToSql\Options;
 
-abstract readonly class AbstractSingleField implements FieldInterface
+abstract readonly class AbstractSingleProperty implements PropertyInterface
 {
-    /** access @see getFieldName instead */
+    /** access @see getPropertyName instead */
     private string $name;
     public ?string $description;
     public ?string $select;
@@ -18,7 +19,7 @@ abstract readonly class AbstractSingleField implements FieldInterface
     public bool $unique;
     public bool $indexed;
 
-    public function __construct(array $data)
+    public function __construct(Options $data)
     {
         $this->name = $data['name'];
         $this->description = $data['description'] ?? null;
@@ -35,7 +36,7 @@ abstract readonly class AbstractSingleField implements FieldInterface
         }
     }
 
-    final public function getFieldName(): string
+    final public function getPropertyName(): string
     {
         return $this->name;
     }
@@ -56,15 +57,15 @@ abstract readonly class AbstractSingleField implements FieldInterface
         }
 
         $table->addColumn(
-            name: $this->getFieldName(),
+            name: $this->getPropertyName(),
             typeName: $this->getDoctrineType(),
             options: $this->getDoctrineOptions(),
         );
 
         if ($this->unique) {
-            $table->addUniqueIndex([$this->getFieldName()]);
+            $table->addUniqueIndex([$this->getPropertyName()]);
         } else if ($this->indexed) {
-            $table->addIndex([$this->getFieldName()]);
+            $table->addIndex([$this->getPropertyName()]);
         }
     }
 
@@ -104,7 +105,7 @@ abstract readonly class AbstractSingleField implements FieldInterface
             return preg_replace('#\bthis\b#', $alias, $this->select);
         }
 
-        return "$alias.{$this->getFieldName()}";
+        return "$alias.{$this->getPropertyName()}";
     }
 
     /**
@@ -135,7 +136,7 @@ abstract readonly class AbstractSingleField implements FieldInterface
 
         if ($old !== $new) {
             return [
-                $this->getFieldName() => [
+                $this->getPropertyName() => [
                     $this->normalizeDatabaseValue($connection, $new),
                     $this->getDoctrineType(),
                 ]

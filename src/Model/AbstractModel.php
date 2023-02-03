@@ -8,59 +8,53 @@ use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Platforms\SqlitePlatform;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Table;
-use Nemo64\RestToSql\Field\AutoIncrementIdField;
-use Nemo64\RestToSql\Field\FieldInterface;
+use Nemo64\RestToSql\Field\AutoIncrementIdProperty;
+use Nemo64\RestToSql\Field\PropertyInterface;
+use Nemo64\RestToSql\Options;
 use Nemo64\RestToSql\Types;
 use RuntimeException;
 
 abstract readonly class AbstractModel implements ModelInterface
 {
-    /** @var FieldInterface[] */
-    private array $fields;
+    /** @var PropertyInterface[] */
+    private array $properties;
     public string $name;
-    public string $idField;
-    public ?string $parentField;
+    public string $idProperty;
+    public ?string $parentProperty;
     public ?ModelInterface $parent;
 
-    public function __construct(array $data)
+    public function __construct(Options $data, ?ModelInterface $parent = null)
     {
         $this->name = $data['name'];
-        $this->parent = $data['parent'] ?? null;
-        $this->idField = $data['id_field'] ?? 'id';
-        $this->parentField = $this->parent !== null ? $data['parent_field'] ?? 'parent' : null;
+        $this->parent = $parent;
+
+        $this->idProperty = $data['id_property'] ?? 'id';
+        $this->parentProperty = $this->parent !== null ? $data['parent_field'] ?? 'parent' : null;
 
         // TODO allow overwrite of the id
-        $field = new AutoIncrementIdField(['name' => $this->idField, 'searchable' => true]);
-        $fields[$field->getFieldName()] = $field;
+        $property = new AutoIncrementIdProperty(new Options(['name' => $this->idProperty, 'searchable' => true]));
+        $fields[$property->getPropertyName()] = $property;
 
-        foreach ($data['fields'] as $name => $field) {
-            $type = Types::getType($field['type']);
-            $options = $field + ['name' => $name, 'parent' => $this];
-            $field = new $type($options);
-            $fields[$field->getFieldName()] = $field;
+        foreach ($data['properties'] as $name => $property) {
+            $type = Types::getType($property['type']);
+            $property['name'] ??= $name;
+            /** @var PropertyInterface $property */
+            $property = new $type($property, $this);
+            $fields[$property->getPropertyName()] = $property;
         }
 
-        $this->fields = $fields;
+        $this->properties = $fields;
     }
 
-    public function getFieldName(): string
+    public function getPropertyName(): string
     {
         return $this->name;
     }
 
-    public function getPropertyPath(): array
-    {
-        if ($this->parent === null) {
-            return [];
-        }
-
-        return [...$this->parent->getPropertyPath(), $this->name];
-    }
-
-    public function getTableName(): string
+    public function getModelName(): string
     {
         return $this->parent !== null
-            ? "{$this->parent->getTableName()}_$this->name"
+            ? "{$this->parent->getModelName()}_$this->name"
             : $this->name;
     }
 
@@ -84,25 +78,25 @@ abstract readonly class AbstractModel implements ModelInterface
         return false;
     }
 
-    /** @return FieldInterface[] */
-    public function getFields(): array
+    /** @return PropertyInterface[] */
+    public function getProperties(): array
     {
-        return $this->fields;
+        return $this->properties;
     }
 
     public function applyOpenApiComponents(array &$schema): void
     {
-        $schema['components']['schemas'][$this->getTableName()] = [
+        $schema['components']['schemas'][$this->getModelName()] = [
             'type' => 'object',
             'properties' => [],
         ];
 
-        foreach ($this->getFields() as $field) {
+        foreach ($this->getProperties() as $field) {
             if ($field instanceof ModelInterface) {
                 $field->applyOpenApiComponents($schema);
             }
 
-            $schema['components']['schemas'][$this->getTableName()]['properties'][$field->getFieldName()] = $field->getOpenApiFieldSchema();
+            $schema['components']['schemas'][$this->getModelName()]['properties'][$field->getPropertyName()] = $field->getOpenApiFieldSchema();
         }
     }
 
@@ -118,8 +112,8 @@ abstract readonly class AbstractModel implements ModelInterface
         }
 
         $parameters = [];
-        foreach ($this->getFields() as $field) {
-            $fieldPropertyPath = ltrim("$propertyPath.{$field->getFieldName()}", '.');
+        foreach ($this->getProperties() as $field) {
+            $fieldPropertyPath = ltrim("$propertyPath.{$field->getPropertyName()}", '.');
             foreach ($field->getOpenApiFilterParameters($fieldPropertyPath) as $parameter) {
                 $parameters[] = $parameter;
             }
@@ -135,8 +129,8 @@ abstract readonly class AbstractModel implements ModelInterface
             return;
         }
 
-        foreach ($this->getFields() as $field) {
-            $fieldPropertyPath = ltrim("$propertyPath.{$field->getFieldName()}", '.');
+        foreach ($this->getProperties() as $field) {
+            $fieldPropertyPath = ltrim("$propertyPath.{$field->getPropertyName()}", '.');
             $field->applyFilters($queryBuilder, $alias, $fieldPropertyPath, $query);
         }
     }
@@ -173,7 +167,7 @@ abstract readonly class AbstractModel implements ModelInterface
     {
         return [
             'type' => 'array',
-            'items' => ['$ref' => '#/components/schemas/' . $this->getTableName()],
+            'items' => ['$ref' => '#/components/schemas/' . $this->getModelName()],
         ];
     }
 }

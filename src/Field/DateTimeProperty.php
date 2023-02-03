@@ -7,13 +7,14 @@ use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Platforms\SqlitePlatform;
 use Doctrine\DBAL\Types\Types;
+use Nemo64\RestToSql\Options;
 
-readonly class DateTimeField extends AbstractSingleField
+readonly class DateTimeProperty extends AbstractSingleProperty
 {
     public ?string $default;
     public ?string $example;
 
-    public function __construct(array $data)
+    public function __construct(Options $data)
     {
         parent::__construct($data);
         $this->default = $data['default'] ?? null;

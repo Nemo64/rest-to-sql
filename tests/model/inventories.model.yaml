@@ -1,18 +1,18 @@
 inventories:
   type: table
-  access:
-    ROLE_ADMIN: true
-    ROLE_USER: { select: this.public = 1 }
-  fields:
+#  access:
+#    ROLE_ADMIN: true
+#    ROLE_USER: { select: this.public = 1 }
+  properties:
     name: { type: string }
     description: { type: string, nullable: true, maxLength: 1000 }
     status: { type: string, enum: [ draft, active ], default: draft, searchable: true }
     public: { type: boolean, select: this.status = 'active' }
     allocations:
       type: table
-      access:
-        ROLE_ADMIN: true
-      fields:
+#      access:
+#        ROLE_ADMIN: true
+      properties:
         description: { type: string, nullable: true, maxLength: 1000 }
         itemName: { type: string }
         quantity: { type: integer }
@@ -21,7 +21,7 @@ inventories:
 #      from: inventories_allocations
 #      where: this.inventories = parent.id # todo it must be clear that this is the parent condition
 #      groupBy: this.itemName
-#      fields:
+#      properties:
 #        itemName: { type: string }
 #        quantity: { type: integer, select: SUM(this.quantity) }
 
@@ -29,26 +29,26 @@ inventories_totals:
   type: view
   from: inventories_allocations
   groupBy: this.itemName
-  access:
-    ROLE_ADMIN: true
-  fields:
+#  access:
+#    ROLE_ADMIN: true
+  properties:
     itemName: { type: string }
     quantity: { type: integer, select: SUM(this.quantity), searchable: true }
     changes: { type: integer, select: COUNT(this.id) }
 
 users:
   type: table
-  access:
-    ROLE_ADMIN: true
-    ROLE_USER: this.id = :user_id
-  fields:
+#  access:
+#    ROLE_ADMIN: true
+#    ROLE_USER: this.id = :user_id
+  properties:
     status: { type: string, enum: [ invited, enabled, disabled ], default: invited, searchable: true }
     enabled: { type: boolean, select: this.status = 'enabled' }
     username: { type: string, select: (SELECT email FROM users_emails WHERE users_emails.parent = this.id AND users_emails.main = 1 LIMIT 1), searchable: true }
     member_since: { type: date-time }
     emails:
       type: table
-      fields:
+      properties:
         email: { type: string, unique: true }
         verified: { type: boolean }
         main: { type: boolean }

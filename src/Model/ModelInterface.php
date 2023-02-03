@@ -5,11 +5,12 @@ namespace Nemo64\RestToSql\Model;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Schema;
-use Nemo64\RestToSql\Field\FieldInterface;
+use Nemo64\RestToSql\Exception\ApiRelatedException;
+use Nemo64\RestToSql\Field\PropertyInterface;
 
-interface ModelInterface extends FieldInterface
+interface ModelInterface extends PropertyInterface
 {
-    public function getTableName(): string;
+    public function getModelName(): string;
 
     public function canSelect(): bool;
 
@@ -19,14 +20,20 @@ interface ModelInterface extends FieldInterface
 
     public function canDelete(): bool;
 
-    /** @return FieldInterface[] */
-    public function getFields(): array;
+    /** @return PropertyInterface[] */
+    public function getProperties(): array;
 
     public function applyOpenApiComponents(array &$schema): void;
 
     public function applySqlTableSchema(Schema $schema): void;
 
+    /**
+     * @throws ApiRelatedException
+     */
     public function createSelectQueryBuilder(Connection $connection, array $query = []): QueryBuilder;
 
+    /**
+     * @throws ApiRelatedException
+     */
     public function executeUpdates(Connection $connection, mixed $parentId, array $oldRecords, array $newRecords): array;
 }

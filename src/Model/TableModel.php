@@ -8,6 +8,8 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\Types;
+use Nemo64\RestToSql\Exception\ApiRelatedException;
+use Nemo64\RestToSql\Exception\InternalServerErrorException;
 
 readonly class TableModel extends AbstractModel
 {
@@ -33,20 +35,20 @@ readonly class TableModel extends AbstractModel
 
     public function applySqlTableSchema(Schema $schema): void
     {
-        $table = $schema->createTable($this->getTableName());
+        $table = $schema->createTable($this->getModelName());
 
         // TODO I'm not sure if this belongs here
         if ($this->parent !== null) {
             $table->addColumn('parent', Types::INTEGER, ['unsigned' => true]);
             $table->addForeignKeyConstraint(
-                foreignTable: $this->parent->getTableName(),
-                localColumnNames: [$this->parentField],
-                foreignColumnNames: [$this->parent->idField],
+                foreignTable: $this->parent->getModelName(),
+                localColumnNames: [$this->parentProperty],
+                foreignColumnNames: [$this->parent->idProperty],
                 options: ['onDelete' => 'CASCADE'],
             );
         }
 
-        foreach ($this->getFields() as $field) {
+        foreach ($this->getProperties() as $field) {
             if ($field instanceof ModelInterface) {
                 $field->applySqlTableSchema($schema);
             }
@@ -58,18 +60,18 @@ readonly class TableModel extends AbstractModel
     public function createSelectQueryBuilder(Connection $connection, array $query = []): QueryBuilder
     {
         $queryBuilder = $connection->createQueryBuilder();
-        $queryBuilder->from($this->getTableName());
-        $this->applyFilters($queryBuilder, $this->getTableName(), '', $query);
+        $queryBuilder->from($this->getModelName());
+        $this->applyFilters($queryBuilder, $this->getModelName(), '', $query);
 
         if ($this->parent instanceof self) {
-            $queryBuilder->andWhere("{$this->getTableName()}.$this->parentField = {$this->parent->getTableName()}.{$this->parent->idField}");
+            $queryBuilder->andWhere("{$this->getModelName()}.$this->parentProperty = {$this->parent->getModelName()}.{$this->parent->idProperty}");
         }
 
         $select = [];
-        foreach ($this->getFields() as $field) {
+        foreach ($this->getProperties() as $field) {
             /** @noinspection NullPointerExceptionInspection */
-            $select[] = $connection->getDatabasePlatform()->quoteStringLiteral($field->getFieldName());
-            $select[] = $field->getSelectExpression($connection, $this->getTableName());
+            $select[] = $connection->getDatabasePlatform()->quoteStringLiteral($field->getPropertyName());
+            $select[] = $field->getSelectExpression($connection, $this->getModelName());
         }
         $queryBuilder->select('JSON_OBJECT(' . implode(', ', $select) . ')');
 
@@ -80,65 +82,73 @@ readonly class TableModel extends AbstractModel
 
     public function executeUpdates(Connection $connection, mixed $parentId, array $oldRecords, array $newRecords): array
     {
-        try {
-            $finalIds = [];
-            $oldRecords = array_column($oldRecords, column_key: null, index_key: $this->idField);
+        $finalIds = [];
+        $oldRecords = array_column($oldRecords, column_key: null, index_key: $this->idProperty);
 
-            foreach ($newRecords as $newRecord) {
-                if (isset($newRecord[$this->idField], $oldRecords[$newRecord[$this->idField]])) {
-                    $oldRecord = $oldRecords[$newRecord[$this->idField]];
-                    unset($oldRecords[$newRecord[$this->idField]]);
+        foreach ($newRecords as $newRecord) {
+            if (isset($newRecord[$this->idProperty], $oldRecords[$newRecord[$this->idProperty]])) {
+                $oldRecord = $oldRecords[$newRecord[$this->idProperty]];
+                unset($oldRecords[$newRecord[$this->idProperty]]);
+            }
+
+            $fields = [];
+            foreach ($this->getProperties() as $key => $field) {
+                if (array_key_exists($key, $newRecord)) {
+                    $fields += $field->getUpdateValues($connection, $oldRecord[$key] ?? null, $newRecord[$key]);
                 }
+            }
 
-                $fields = [];
-                foreach ($this->getFields() as $key => $field) {
-                    if (array_key_exists($key, $newRecord)) {
-                        $fields += $field->getUpdateValues($connection, $oldRecord[$key] ?? null, $newRecord[$key]);
-                    }
-                }
-
-                if (isset($oldRecord[$this->idField])) {
-                    $finalIds[] = $id = $oldRecord[$this->idField];
+            if (isset($oldRecord[$this->idProperty])) {
+                try {
+                    $finalIds[] = $id = $oldRecord[$this->idProperty];
                     if (count($fields) > 0) {
                         $connection->update(
-                            table: $this->getTableName(),
+                            table: $this->getModelName(),
                             data: array_combine(array_keys($fields), array_column($fields, 0)),
-                            criteria: [$this->idField => $id],
+                            criteria: [$this->idProperty => $id],
                             types: array_combine(array_keys($fields), array_column($fields, 1)),
                         );
                     }
 
                     $this->executeSubUpdates($connection, $id, $oldRecord, $newRecord);
-                } else {
+                } catch (Exception $e) {
+                    throw new InternalServerErrorException("Failed to update {$this->getModelName()}: {$e->getMessage()}", 0, $e);
+                }
+            } else {
+                try {
                     if ($parentId !== null) {
-                        $fields[$this->parentField] = [$parentId, ParameterType::INTEGER];
+                        $fields[$this->parentProperty] = [$parentId, ParameterType::INTEGER];
                     }
 
                     $connection->insert(
-                        table: $this->getTableName(),
+                        table: $this->getModelName(),
                         data: array_combine(array_keys($fields), array_column($fields, 0)),
                         types: array_combine(array_keys($fields), array_column($fields, 1)),
                     );
 
                     $finalIds[] = $id = $connection->lastInsertId();
                     $this->executeSubUpdates($connection, $id, null, $newRecord);
+                } catch (Exception $e) {
+                    throw new InternalServerErrorException("Failed to insert {$this->getModelName()}: {$e->getMessage()}", 0, $e);
                 }
             }
-
-            foreach ($oldRecords as $oldRecord) {
-                $this->executeSubUpdates($connection, $oldRecord[$this->idField], $oldRecord, null);
-                $connection->delete($this->getTableName(), [$this->idField => $oldRecord[$this->idField]]);
-            }
-
-            return $finalIds;
-        } catch (Exception $e) {
-            throw new \RuntimeException('Failed to update ' . $this->getTableName() . ': ' . $e->getMessage(), 0, $e);
         }
+
+        foreach ($oldRecords as $oldRecord) {
+            try {
+                $this->executeSubUpdates($connection, $oldRecord[$this->idProperty], $oldRecord, null);
+                $connection->delete($this->getModelName(), [$this->idProperty => $oldRecord[$this->idProperty]]);
+            } catch (Exception $e) {
+                throw new InternalServerErrorException("Failed to delete {$this->getModelName()}: {$e->getMessage()}", 0, $e);
+            }
+        }
+
+        return $finalIds;
     }
 
     private function executeSubUpdates(Connection $connection, mixed $parentId, ?array $oldRecord, ?array $newRecord): void
     {
-        foreach ($this->getFields() as $key => $field) {
+        foreach ($this->getProperties() as $key => $field) {
             // TODO checking for ModelInterface breaks recursion and will prevent embeddable types
             if (!$field instanceof ModelInterface) {
                 continue;

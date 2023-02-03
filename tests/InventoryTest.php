@@ -1,21 +1,22 @@
 <?php
 
-namespace Nemo64\RestToSql\Test;
+namespace Nemo64\RestToSql\Tests;
 
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Logging\Middleware;
 use Doctrine\DBAL\Schema\Schema;
 use GuzzleHttp\Psr7\ServerRequest;
 use Nemo64\RestToSql\RestToSql;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Yaml\Yaml;
 
 class InventoryTest extends TestCase
 {
     public function testProcess(): void
     {
-        $connection = DriverManager::getConnection([
-            'url' => 'sqlite:///:memory:',
-        ]);
+        $connection = DriverManager::getConnection(['url' => 'sqlite:///:memory:']);
         $client = new RestToSql($connection, Yaml::parseFile(__DIR__ . '/model/inventories.model.yaml'));
 
         $schema = new Schema();
@@ -54,7 +55,7 @@ class InventoryTest extends TestCase
 
         $response = $client->handle(new ServerRequest('GET', '/api/inventories/2'));
         $this->assertEquals(404, $response->getStatusCode());
-        $this->assertEquals('{"message":"The requested sub-resource was not found."}', (string)$response->getBody());
+        $this->assertEquals('{"message":"No inventories found for id \'2\'"}', (string)$response->getBody());
 
         $response = $client->handle(new ServerRequest('GET', '/api/inventories'));
         $this->assertEquals(200, $response->getStatusCode());

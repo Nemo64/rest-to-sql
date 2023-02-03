@@ -3,10 +3,16 @@
 namespace Nemo64\RestToSql;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception as DbalException;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Schema;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Utils;
+use Nemo64\RestToSql\Exception\ApiRelatedException;
+use Nemo64\RestToSql\Exception\BadRequestException;
+use Nemo64\RestToSql\Exception\InternalServerErrorException;
+use Nemo64\RestToSql\Exception\MethodNotAllowedException;
+use Nemo64\RestToSql\Exception\NotFoundException;
 use Nemo64\RestToSql\Model\ModelInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -22,10 +28,13 @@ class RestToSql implements RequestHandlerInterface
         array                      $models,
         public readonly string     $apiPathPrefix = '/api',
     ) {
-        foreach ($models as $name => $options) {
+        $modelsOptions = new Options($models);
+        foreach ($modelsOptions as $name => $options) {
             $type = Types::getType($options['type']);
-            $this->models[$name] = new $type($options + ['name' => $name]);
+            $options['name'] ??= $name;
+            $this->models[$name] = new $type($options);
         }
+        $modelsOptions->throwForUnusedOptions();
     }
 
     public static function fromEnvironment(): self
@@ -36,7 +45,7 @@ class RestToSql implements RequestHandlerInterface
             'charset' => 'utf8mb4',
         ]);
 
-        $schemaGlob = getenv('REST_TO_SQL_MODEL_PATH') ?: '{src,test,model,schema,config}/{*,*/*,*/*/*}/*.model.yaml';
+        $schemaGlob = getenv('REST_TO_SQL_MODEL_PATH') ?: '{src,tests,model,schema,config}/{*,*/*,*/*/*}/*.model.yaml';
         if (!str_contains($schemaGlob, '.yaml') && !str_contains($schemaGlob, '.yml')) {
             echo "Warning: The schema file should have the .yml extension. The search pattern $schemaGlob does not restrict that.", PHP_EOL;
         }
@@ -75,16 +84,16 @@ class RestToSql implements RequestHandlerInterface
 
         foreach ($this->models as $model) {
             $model->applyOpenApiComponents($schema);
-            $path = "$this->apiPathPrefix/{$model->getFieldName()}";
+            $path = "$this->apiPathPrefix/{$model->getPropertyName()}";
 
             if ($model->canSelect()) {
                 $schema['paths'][$path]['get'] = [
-                    'tags' => [$model->getTableName()],
+                    'tags' => [$model->getModelName()],
                     'parameters' => $model->getOpenApiFilterParameters(''),
                     'responses' => [
                         '200' => [
                             'content' => [
-                                'application/json' => ['schema' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/' . $model->getTableName()]]],
+                                'application/json' => ['schema' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/' . $model->getModelName()]]],
                             ],
                         ],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
@@ -92,36 +101,36 @@ class RestToSql implements RequestHandlerInterface
                 ];
 
                 $schema['paths'][$path . '/{id}']['get'] = [
-                    'tags' => [$model->getTableName()],
+                    'tags' => [$model->getModelName()],
                     'parameters' => [
                         ['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']],
                     ],
                     'responses' => [
                         '200' => [
                             'content' => [
-                                'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getTableName()]],
+                                'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getModelName()]],
                             ],
                         ],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
+                        '404' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                     ],
                 ];
             }
 
             if ($model->canInsert()) {
                 $schema['paths'][$path]['post'] = [
-                    'tags' => [$model->getTableName()],
+                    'tags' => [$model->getModelName()],
                     'requestBody' => [
                         'content' => [
-                            'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getTableName()]],
+                            'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getModelName()]],
                         ],
                     ],
                     'responses' => [
                         '201' => [
                             'content' => [
-                                'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getTableName()]],
+                                'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getModelName()]],
                             ],
                         ],
-                        '400' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '404' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '422' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
@@ -131,22 +140,21 @@ class RestToSql implements RequestHandlerInterface
 
             if ($model->canUpdate()) {
                 $schema['paths'][$path . '/{id}']['patch'] = [
-                    'tags' => [$model->getTableName()],
+                    'tags' => [$model->getModelName()],
                     'parameters' => [
                         ['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']],
                     ],
                     'requestBody' => [
                         'content' => [
-                            'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getTableName()]],
+                            'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getModelName()]],
                         ],
                     ],
                     'responses' => [
                         '200' => [
                             'content' => [
-                                'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getTableName()]],
+                                'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getModelName()]],
                             ],
                         ],
-                        '400' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '404' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '422' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
@@ -156,214 +164,237 @@ class RestToSql implements RequestHandlerInterface
 
             if ($model->canDelete()) {
                 $schema['paths'][$path . '/{id}']['delete'] = [
-                    'tags' => [$model->getTableName()],
+                    'tags' => [$model->getModelName()],
                     'parameters' => [
                         ['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']],
                     ],
                     'requestBody' => [
                         'content' => [
-                            'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getTableName()]],
+                            'application/json' => ['schema' => ['$ref' => '#/components/schemas/' . $model->getModelName()]],
                         ],
                     ],
                     'responses' => [
                         '204' => [],
-                        '400' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                         '404' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
-                        '422' => ['content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/error']]]],
                     ],
                 ];
             }
         }
     }
 
-    public function createSelectQueryBuilder(string $path, array $query): ?QueryBuilder
+    /**
+     * @throws NotFoundException
+     */
+    private function getModel(string $modelName)
     {
-        [$model, $id] = $this->getModelForPath($path);
+        $model = $this->models[$modelName] ?? null;
         if ($model === null) {
-            return null;
+            throw new NotFoundException("No model found for name '$modelName'");
         }
 
-        if (!empty($id)) {
-            $query['id'] = $id;
-        }
-
-        return $model->createSelectQueryBuilder($this->connection, $query);
+        return $model;
     }
 
-    public function executeSelect(string $path, array $query = []): string|\Traversable|null
+    /**
+     * @throws ApiRelatedException
+     */
+    public function list(string $modelName, array $query): \Iterator
     {
-        [$model, $id] = $this->getModelForPath($path);
-        if ($model === null) {
-            return null;
+        try {
+            $model = $this->getModel($modelName);
+            $queryBuilder = $model->createSelectQueryBuilder($this->connection, $query);
+            return $queryBuilder->executeQuery()->iterateColumn();
+        } catch (DbalException $e) {
+            throw new InternalServerErrorException($e->getMessage(), previous: $e);
         }
+    }
 
-        if ($id !== null) {
+    /**
+     * @throws ApiRelatedException
+     */
+    public function get(string $modelName, string|int $id): string
+    {
+        try {
+            $model = $this->getModel($modelName);
             $queryBuilder = $model->createSelectQueryBuilder($this->connection, ['id' => $id]);
-            $result = $queryBuilder->setMaxResults(1)->fetchOne();
-            return $result !== false ? $result : null;
-        }
+            $data = $queryBuilder->executeQuery()->fetchOne();
+            if ($data === false) {
+                throw new NotFoundException("No $modelName found for id '$id'");
+            }
 
-        $queryBuilder = $model->createSelectQueryBuilder($this->connection, $query);
-        return $queryBuilder->executeQuery()->iterateColumn();
+            return $data;
+        } catch (DbalException $e) {
+            throw new InternalServerErrorException($e->getMessage(), previous: $e);
+        }
     }
 
-    public function executeUpdate(string $path, ?array $newRecord, ?bool $expectUpdate = null): array
+    /**
+     * @throws ApiRelatedException
+     */
+    public function post(string $modelName, array $data): array
     {
-        [$model, $id] = $this->getModelForPath($path);
-        if ($model === null) {
-            return [];
-        }
+        try {
+            $model = $this->getModel($modelName);
 
-        if ($expectUpdate === true && $id === null) {
-            throw new \RuntimeException('An update expects an id in the path.');
-        }
-
-        if ($expectUpdate === false && $id !== null) {
-            throw new \RuntimeException('An insert does not expect an id in the path.');
-        }
-
-        if ($newRecord !== null && $id !== null) {
-            $newRecord['id'] = $id;
-        }
-
-        return $this->connection->transactional(function ($connection) use ($model, $id, $newRecord) {
-            if ($id === null) {
-                return $model->executeUpdates(
-                    connection: $connection,
-                    parentId: null,
-                    oldRecords: [],
-                    newRecords: $newRecord === null ? [] : [$newRecord]
-                );
+            $this->connection->beginTransaction();
+            try {
+                [$id] = $model->executeUpdates($this->connection, null, [], [$data]);
+                $this->connection->commit();
+            } catch (\Throwable $e) {
+                $this->connection->rollBack();
+                throw $e;
             }
 
             $queryBuilder = $model->createSelectQueryBuilder($this->connection, ['id' => $id]);
-            $oldRecord = $queryBuilder->setMaxResults(1)->fetchOne();
-            if ($oldRecord === false) {
-                throw new \RuntimeException('Record not found.');
+            return [$queryBuilder->executeQuery()->fetchOne(), $id];
+        } catch (DbalException $e) {
+            throw new InternalServerErrorException($e->getMessage(), previous: $e);
+        }
+    }
+
+    /**
+     * @throws ApiRelatedException
+     */
+    public function patch(string $modelName, string|int $id, array $data): string
+    {
+        try {
+            $model = $this->getModel($modelName);
+            $queryBuilder = $model->createSelectQueryBuilder($this->connection, ['id' => $id]);
+            $this->connection->beginTransaction();
+            try {
+                $existingData = $queryBuilder->executeQuery()->fetchOne();
+                if ($existingData === false) {
+                    throw new NotFoundException("No $modelName found for id '$id'");
+                }
+
+                $existingData = json_decode($existingData, true, 512, JSON_THROW_ON_ERROR);
+                $data['id'] = $id;
+                $model->executeUpdates($this->connection, null, [$existingData], [$data]);
+                $this->connection->commit();
+            } catch (\Throwable $e) {
+                $this->connection->rollBack();
+                throw $e;
             }
 
-            return $model->executeUpdates(
-                connection: $connection,
-                parentId: null,
-                oldRecords: [json_decode($oldRecord, true, 512, JSON_THROW_ON_ERROR)],
-                newRecords: $newRecord === null ? [] : [$newRecord]
-            );
-        });
+            return $queryBuilder->executeQuery()->fetchOne();
+        } catch (DbalException $e) {
+            throw new InternalServerErrorException($e->getMessage(), previous: $e);
+        }
+    }
+
+
+    /**
+     * @throws ApiRelatedException
+     */
+    public function delete(string $modelName, string|int $id): void
+    {
+        try {
+            $model = $this->getModel($modelName);
+            $queryBuilder = $model->createSelectQueryBuilder($this->connection, ['id' => $id]);
+            $this->connection->beginTransaction();
+            try {
+                $existingData = $queryBuilder->executeQuery()->fetchOne();
+                if ($existingData === false) {
+                    throw new NotFoundException("No $modelName found for id '$id'");
+                }
+
+                $existingData = json_decode($existingData, true, 512, JSON_THROW_ON_ERROR);
+                $model->executeUpdates($this->connection, null, [$existingData], []);
+                $this->connection->commit();
+            } catch (\Throwable $e) {
+                $this->connection->rollBack();
+                throw $e;
+            }
+        } catch (DbalException $e) {
+            throw new InternalServerErrorException($e->getMessage(), previous: $e);
+        }
     }
 
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         try {
-            if ($request->getMethod() === 'POST') {
-                $newRecord = json_decode($request->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
-                $ids = $this->executeUpdate($request->getUri()->getPath(), $newRecord, expectUpdate: false);
-                $newPath = $request->getUri()->getPath() . '/' . reset($ids);
-                $result = $this->executeSelect($newPath);
-                return new Response(
-                    status: 201,
-                    headers: ['Content-Type' => 'application/json', 'Location' => $newPath],
-                    body: $result,
-                );
-            }
+            $path = substr($request->getUri()->getPath(), strlen($this->apiPathPrefix));
+            $pathSegments = explode('/', trim($path, '/'), 2);
+            $method = $request->getMethod();
+            $model = $this->getModel($pathSegments[0] ?? '');
+            $id = $pathSegments[1] ?? null;
 
-            if ($request->getMethod() === 'PATCH') {
-                $newRecord = json_decode($request->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
-                $this->executeUpdate($request->getUri()->getPath(), $newRecord, expectUpdate: true);
-                $result = $this->executeSelect($request->getUri()->getPath());
+            if ($method === 'GET' && $id === null && $model->canSelect()) {
+                $iterator = $this->list($model->getModelName(), $request->getQueryParams());
                 return new Response(
                     status: 200,
                     headers: ['Content-Type' => 'application/json'],
-                    body: $result,
+                    body: call_user_func(static function () use ($iterator) {
+                        yield '[';
+                        if ($iterator->valid()) {
+                            yield $iterator->current();
+                            $iterator->next();
+                        }
+                        while ($iterator->valid()) {
+                            yield ',';
+                            yield $iterator->current();
+                            $iterator->next();
+                        }
+                        yield ']';
+                    }),
                 );
             }
 
-            if ($request->getMethod() === 'DELETE') {
-                $this->executeUpdate($request->getUri()->getPath(), null, expectUpdate: true);
+            if ($method === 'GET' && $id !== null && $model->canSelect()) {
+                $response = $this->get($model->getModelName(), $id);
                 return new Response(
-                    status: 204,
+                    status: 200,
+                    headers: ['Content-Type' => 'application/json'],
+                    body: $response,
                 );
             }
 
-            if ($request->getMethod() === 'GET') {
-                $result = $this->executeSelect($request->getUri()->getPath(), $request->getQueryParams());
-                return match (gettype($result)) {
-                    'NULL' => new Response(
-                        status: 404,
-                        headers: ['Content-Type' => 'application/json'],
-                        body: json_encode(['message' => 'The requested sub-resource was not found.'], JSON_THROW_ON_ERROR),
-                    ),
-                    'string' => new Response(
-                        status: 200,
-                        headers: ['Content-Type' => 'application/json'],
-                        body: $result,
-                    ),
-                    default => new Response(
-                        status: 200,
-                        headers: ['Content-Type' => 'application/json'],
-                        body: Utils::streamFor(call_user_func(static function () use ($result) {
-                            yield '[';
-                            $first = true;
-                            foreach ($result as $row) {
-                                if ($first) {
-                                    $first = false;
-                                } else {
-                                    yield ',';
-                                }
-                                yield $row;
-                            }
-                            yield ']';
-                        })),
-                    ),
-                };
+            if ($method === 'POST' && $id === null && $model->canInsert()) {
+                $body = json_decode($request->getBody(), true, 512, JSON_THROW_ON_ERROR);
+                [$response, $id] = $this->post($model->getModelName(), $body);
+                return new Response(
+                    status: 201,
+                    headers: [
+                        'Content-Type' => 'application/json',
+                        'Location' => "$this->apiPathPrefix/{$model->getModelName()}/$id"
+                    ],
+                    body: $response,
+                );
+            }
+
+            if ($method === 'PATCH' && $id !== null && $model->canUpdate()) {
+                $body = json_decode($request->getBody(), true, 512, JSON_THROW_ON_ERROR);
+                $response = $this->patch($model->getModelName(), $id, $body);
+                return new Response(
+                    status: 200,
+                    headers: ['Content-Type' => 'application/json'],
+                    body: $response,
+                );
+            }
+
+            if ($method === 'DELETE' && $id !== null && $model->canDelete()) {
+                $this->delete($model->getModelName(), $id);
+                return new Response(status: 204);
             }
 
             return new Response(
                 status: 405,
                 headers: ['Content-Type' => 'application/json'],
-                body: json_encode(['message' => 'Method not allowed.'], JSON_THROW_ON_ERROR),
+                body: json_encode(['message' => "Method $method not allowed"], JSON_THROW_ON_ERROR),
             );
         } catch (\JsonException $e) {
             return new Response(
                 status: 400,
                 headers: ['Content-Type' => 'application/json'],
+                body: json_encode(['error' => $e->getMessage()], JSON_THROW_ON_ERROR),
+            );
+        } catch (ApiRelatedException $e) {
+            return new Response(
+                status: $e->getStatusCode(),
+                headers: ['Content-Type' => 'application/json'],
                 body: json_encode(['message' => $e->getMessage()], JSON_THROW_ON_ERROR),
             );
         }
     }
-
-    /**
-     * @param string $path
-     * @return null|array{ModelInterface, string|null}
-     */
-    private function getModelForPath(string $path): ?array
-    {
-        if (!str_starts_with($path, $this->apiPathPrefix)) {
-            return null;
-        }
-
-        $path = substr($path, strlen($this->apiPathPrefix) + 1);
-        $pathItems = explode('/', $path);
-        $usedPathIndex = 0;
-
-        $model = $this->models[$pathItems[0]] ?? null;
-        if ($model === null) {
-            return null;
-        }
-
-        foreach (array_slice($pathItems, 0, -1) as $index => $pathItem) {
-            $subModel = $model->getFields()[$pathItem] ?? null;
-            if ($subModel instanceof ModelInterface) {
-                $model = $subModel;
-                $usedPathIndex = $index;
-            } else {
-                break;
-            }
-        }
-
-        $id = implode('/', array_slice($pathItems, $usedPathIndex + 1));
-        return [$model, $id === '' ? null : $id];
-    }
-
-
 }

@@ -11,8 +11,8 @@ class Types
 
     public static function registerType(string $class): void
     {
-        if (!is_a($class, Field\FieldInterface::class, true)) {
-            throw new \RuntimeException("The class $class does not implement " . Field\FieldInterface::class);
+        if (!is_a($class, Field\PropertyInterface::class, true)) {
+            throw new \RuntimeException("The class $class does not implement " . Field\PropertyInterface::class);
         }
 
         self::$types[$class::getTypeName()] = $class;
@@ -29,11 +29,11 @@ class Types
     }
 }
 
-Types::registerType(Field\AutoIncrementIdField::class);
-Types::registerType(Field\BooleanField::class);
-Types::registerType(Field\DateTimeField::class);
-Types::registerType(Field\IntegerField::class);
-Types::registerType(Field\StringField::class);
+Types::registerType(Field\AutoIncrementIdProperty::class);
+Types::registerType(Field\BooleanProperty::class);
+Types::registerType(Field\DateTimeProperty::class);
+Types::registerType(Field\IntegerProperty::class);
+Types::registerType(Field\StringProperty::class);
 
 Types::registerType(Model\TableModel::class);
 Types::registerType(Model\ViewModel::class);

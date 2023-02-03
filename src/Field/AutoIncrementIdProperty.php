@@ -6,12 +6,13 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Types;
+use Nemo64\RestToSql\Options;
 
-readonly class AutoIncrementIdField implements FieldInterface
+readonly class AutoIncrementIdProperty implements PropertyInterface
 {
     private string $name;
 
-    public function __construct(array $data)
+    public function __construct(Options $data)
     {
         $this->name = $data['name'];
     }
@@ -21,7 +22,7 @@ readonly class AutoIncrementIdField implements FieldInterface
         return 'auto_increment_id';
     }
 
-    public function getFieldName(): string
+    public function getPropertyName(): string
     {
         return $this->name;
     }
@@ -29,16 +30,16 @@ readonly class AutoIncrementIdField implements FieldInterface
     public function applySqlFieldSchema(Table $table): void
     {
         $table->addColumn(
-            name: $this->getFieldName(),
+            name: $this->getPropertyName(),
             typeName: Types::INTEGER,
             options: ['unsigned' => true, 'autoincrement' => true],
         );
-        $table->setPrimaryKey([$this->getFieldName()]);
+        $table->setPrimaryKey([$this->getPropertyName()]);
     }
 
     public function getSelectExpression(Connection $connection, string $alias): string
     {
-        return "$alias.{$this->getFieldName()}";
+        return "$alias.{$this->getPropertyName()}";
     }
 
     public function getUpdateValues(Connection $connection, mixed $old, mixed $new): array
@@ -77,10 +78,10 @@ readonly class AutoIncrementIdField implements FieldInterface
 
         $values = array_filter((array)$query[$propertyPath], 'is_numeric');
         if (count($values) === 1) {
-            $queryBuilder->andWhere("$alias.{$this->getFieldName()} = :$propertyPath");
+            $queryBuilder->andWhere("$alias.{$this->getPropertyName()} = :$propertyPath");
             $queryBuilder->setParameter($propertyPath, reset($values), Types::INTEGER);
         } else if (count($values) > 1) {
-            $queryBuilder->andWhere("$alias.{$this->getFieldName()} IN (:$propertyPath)");
+            $queryBuilder->andWhere("$alias.{$this->getPropertyName()} IN (:$propertyPath)");
             $queryBuilder->setParameter($propertyPath, $values, Connection::PARAM_INT_ARRAY);
         }
     }

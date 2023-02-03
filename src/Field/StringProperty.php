@@ -5,8 +5,9 @@ namespace Nemo64\RestToSql\Field;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
+use Nemo64\RestToSql\Options;
 
-readonly class StringField extends AbstractSingleField
+readonly class StringProperty extends AbstractSingleProperty
 {
     public ?string $default;
     public ?string $example;
@@ -14,13 +15,13 @@ readonly class StringField extends AbstractSingleField
     public int $minLength;
     public ?int $maxLength;
 
-    public function __construct(array $data)
+    public function __construct(Options $data)
     {
         parent::__construct($data);
         $this->default = $data['default'] ?? null;
         $this->example = $data['example'] ?? null;
 
-        $this->enum = isset($data['enum']) ? array_map('strval', $data['enum']) : null;
+        $this->enum = isset($data['enum']) ? array_map('strval', iterator_to_array($data['enum'])) : null;
         if ($this->enum !== null && $this->default !== null && !in_array($this->default, $this->enum, true)) {
             throw new \InvalidArgumentException("The default value {$this->default} is not in the enum.");
         }

@@ -60,11 +60,10 @@ composer require nemo64/rest-to-sql
 
 The most basic component. In OpenAPI it would be a `type: array`.
 
-
 ```yaml
 inventory:
   type: table
-  fields: 
+  properties: 
     name: { type: string }
 ```
 
@@ -100,7 +99,7 @@ users:
   access:
     ROLE_ADMIN: true
     ROLE_USER: this.id = :user_id
-  fields:
+  properties:
     status:
       type: string
       enum: [ invited, enabled, disabled ]
@@ -115,7 +114,7 @@ users:
       searchable: true
     emails:
       type: table
-      fields:
+      properties:
         email:
           type: string
           unique: true

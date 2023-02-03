@@ -29,7 +29,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Nemo64\\RestToSql\\Test\\": "test/"
+            "Nemo64\\RestToSql\\Test\\": "tests/"
         }
     }
 }

@@ -7,12 +7,13 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Platforms\SqlitePlatform;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
+use Nemo64\RestToSql\Options;
 
-readonly class BooleanField extends AbstractSingleField
+readonly class BooleanProperty extends AbstractSingleProperty
 {
     public ?bool $default;
 
-    public function __construct(array $data)
+    public function __construct(Options $data)
     {
         parent::__construct($data);
         $this->default = $data['default'] ?? null;

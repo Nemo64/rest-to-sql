@@ -3,15 +3,16 @@
 namespace Nemo64\RestToSql\Field;
 
 use Doctrine\DBAL\Types\Types;
+use Nemo64\RestToSql\Options;
 
-readonly class IntegerField extends AbstractSingleField
+readonly class IntegerProperty extends AbstractSingleProperty
 {
     public ?int $default;
     public ?int $example;
     public int $minimum;
     public int $maximum;
 
-    public function __construct(array $data)
+    public function __construct(Options $data)
     {
         parent::__construct($data);
         $this->default = $data['default'] ?? null;
