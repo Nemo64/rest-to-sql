@@ -4,9 +4,7 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 $restToSql = \Nemo64\RestToSql\RestToSql::fromEnvironment();
-
-$schema = new \Doctrine\DBAL\Schema\Schema();
-$restToSql->applySqlTableSchema($schema);
+$schema = $restToSql->getDatabaseSchema();
 
 $comparator = $restToSql->connection->createSchemaManager()->createComparator();
 $diff = $comparator->compareSchemas($restToSql->connection->createSchemaManager()->introspectSchema(), $schema);

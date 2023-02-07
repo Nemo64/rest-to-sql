@@ -39,7 +39,7 @@ readonly class TableModel extends AbstractModel
 
         // TODO I'm not sure if this belongs here
         if ($this->parent !== null) {
-            $table->addColumn('parent', Types::INTEGER, ['unsigned' => true]);
+            $table->addColumn($this->parentProperty, Types::INTEGER, ['unsigned' => true]);
             $table->addForeignKeyConstraint(
                 foreignTable: $this->parent->getModelName(),
                 localColumnNames: [$this->parentProperty],

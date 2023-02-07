@@ -5,7 +5,7 @@ namespace Nemo64\RestToSql;
 use Nemo64\RestToSql\Field;
 use Nemo64\RestToSql\Model;
 
-class Types
+final class Types
 {
     private static array $types = [];
 

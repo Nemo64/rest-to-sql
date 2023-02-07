@@ -7,10 +7,6 @@ $restToSql = \Nemo64\RestToSql\RestToSql::fromEnvironment();
 
 parse_str($argv[2] ?? '', $query);
 $queryBuilder = $restToSql->createSelectQueryBuilder($argv[1], $query);
-if ($queryBuilder === null) {
-    echo 'No query builder found for path ' . $argv[1] . PHP_EOL;
-    exit(1);
-}
 
 $formatter = new \Doctrine\SqlFormatter\SqlFormatter();
 echo $formatter->format($queryBuilder->getSQL()), PHP_EOL;

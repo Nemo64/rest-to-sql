@@ -4,17 +4,7 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 $restToSql = \Nemo64\RestToSql\RestToSql::fromEnvironment();
-
-$openApiSchema = [
-    'openapi' => '3.0.0',
-    'info' => [
-        'title' => 'RestToSql API',
-        'version' => '1.0.0',
-    ],
-    'paths' => [],
-];
-
-$restToSql->applyOpenApiSchema($openApiSchema);
+$openApiSchema = $restToSql->getOpenApiSchema();
 
 ?>
 <!DOCTYPE html>

@@ -5,11 +5,11 @@ require __DIR__ . '/../vendor/autoload.php';
 $restToSql = \Nemo64\RestToSql\RestToSql::fromEnvironment();
 
 if ($_SERVER['REQUEST_URI'] === '/') {
-    header('Location: ' . $restToSql->apiPathPrefix);
+    header('Location: /api');
     exit;
 }
 
-if ($_SERVER['REQUEST_URI'] === $restToSql->apiPathPrefix) {
+if ($_SERVER['REQUEST_URI'] === "/api") {
     include __DIR__ . '/swagger-dump';
     exit;
 }
