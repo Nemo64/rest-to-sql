@@ -28,7 +28,7 @@ interface PropertyInterface
      * @return array
      * @see https://swagger.io/specification/#schema-object
      */
-    public function getOpenApiFilterParameters(string $propertyPath): array;
+    public function getOpenApiParameters(string $propertyPath): array;
 
     /**
      * @param QueryBuilder $queryBuilder The query builder that is used to build the query.

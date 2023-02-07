@@ -36,7 +36,11 @@ class InventoryTest extends TestCase
 
         $response = $requestHandler->handle(new ServerRequest('GET', '/api/inventories'));
         $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('[{"id":1,"name":"testler","description":null,"status":"draft","public":false,"allocations":[]},{"id":2,"name":"test","description":null,"status":"draft","public":false,"allocations":[]}]', (string)$response->getBody());
+        $this->assertEquals('{"items":[{"id":1,"name":"testler","description":null,"status":"draft","public":false,"allocations":[]},{"id":2,"name":"test","description":null,"status":"draft","public":false,"allocations":[]}],"total":2,"limit":100,"offset":0}', (string)$response->getBody());
+
+        $response = $requestHandler->handle((new ServerRequest('GET', '/api/inventories?offset=2'))->withQueryParams(['offset' => 5]));
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('{"items":[],"total":2,"limit":100,"offset":5}', (string)$response->getBody());
 
         $response = $requestHandler->handle(new ServerRequest('PATCH', '/api/inventories/2', [], '{"name": "test2"}'));
         $this->assertEquals(200, $response->getStatusCode());
@@ -56,7 +60,7 @@ class InventoryTest extends TestCase
 
         $response = $requestHandler->handle(new ServerRequest('GET', '/api/inventories'));
         $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('[{"id":1,"name":"testler","description":null,"status":"draft","public":false,"allocations":[]}]', (string)$response->getBody());
+        $this->assertEquals('{"items":[{"id":1,"name":"testler","description":null,"status":"draft","public":false,"allocations":[]}],"total":1,"limit":100,"offset":0}', (string)$response->getBody());
     }
 
     public function testSubResource()

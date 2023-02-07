@@ -104,7 +104,7 @@ abstract readonly class AbstractModel implements ModelInterface
     {
     }
 
-    public function getOpenApiFilterParameters(string $propertyPath): array
+    public function getOpenApiParameters(string $propertyPath): array
     {
         // TODO it should be possible to propagate the filters using joins in the conditions
         if (!empty($propertyPath)) {
@@ -114,7 +114,7 @@ abstract readonly class AbstractModel implements ModelInterface
         $parameters = [];
         foreach ($this->getProperties() as $field) {
             $fieldPropertyPath = ltrim("$propertyPath.{$field->getPropertyName()}", '.');
-            foreach ($field->getOpenApiFilterParameters($fieldPropertyPath) as $parameter) {
+            foreach ($field->getOpenApiParameters($fieldPropertyPath) as $parameter) {
                 $parameters[] = $parameter;
             }
         }

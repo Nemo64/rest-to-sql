@@ -11,6 +11,8 @@ use Nemo64\RestToSql\Exception\InternalServerErrorException;
 use Nemo64\RestToSql\Exception\MethodNotAllowedException;
 use Nemo64\RestToSql\Exception\NotFoundException;
 use Nemo64\RestToSql\Model\ModelInterface;
+use Nemo64\RestToSql\Pager\PagerInterface;
+use Nemo64\RestToSql\Pager\SimplePager;
 use Symfony\Component\Yaml\Yaml;
 
 readonly class RestToSql implements RestToSqlInterface
@@ -19,8 +21,9 @@ readonly class RestToSql implements RestToSqlInterface
     private array $models;
 
     public function __construct(
-        public Connection $connection,
-        array             $models,
+        public Connection     $connection,
+        array                 $models,
+        public PagerInterface $pager = new SimplePager(),
     ) {
         $modelsOptions = new Options($models);
         $models = [];
@@ -41,7 +44,7 @@ readonly class RestToSql implements RestToSqlInterface
             'charset' => 'utf8mb4',
         ]);
 
-        $schemaGlob = getenv('REST_TO_SQL_MODEL_PATH') ?: '{src,tests,model,schema,config}/{*,*/*,*/*/*}/*.model.yaml';
+        $schemaGlob = getenv('REST_TO_SQL_MODEL_PATH') ?: '{src,tests,model,schema,config}/{*,*/*,*/*/*}/{*.model.yaml,model.yaml}';
         if (!str_contains($schemaGlob, '.yaml') && !str_contains($schemaGlob, '.yml')) {
             echo "Warning: The schema file should have the .yml extension. The search pattern $schemaGlob does not restrict that.", PHP_EOL;
         }
@@ -86,9 +89,12 @@ readonly class RestToSql implements RestToSqlInterface
             if ($model->canSelect()) {
                 $schema['paths'][$path]['get'] = [
                     'tags' => [$model->getModelName()],
-                    'parameters' => $model->getOpenApiFilterParameters(''),
+                    'parameters' => [
+                        ...$model->getOpenApiParameters(''),
+                        ...$this->pager->getOpenApiParameters(),
+                    ],
                     'responses' => [
-                        '200' => ['content' => ['application/json' => ['schema' => ['type' => 'array', 'items' => ['$ref' => "#/components/schemas/{$model->getModelName()}"]]]]],
+                        '200' => ['content' => ['application/json' => ['schema' => $this->pager->getOpenApiSchema(['$ref' => "#/components/schemas/{$model->getModelName()}"])]]],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => "#/components/schemas/error"]]]],
                     ],
                 ];
@@ -201,16 +207,8 @@ readonly class RestToSql implements RestToSqlInterface
         }
 
         try {
-            $result = $model->createSelectQueryBuilder($this->connection, $query)->executeQuery();
-            yield "[";
-            if ($jsonObject = $result->fetchOne()) {
-                yield $jsonObject;
-            }
-            while ($jsonObject = $result->fetchOne()) {
-                yield ",";
-                yield $jsonObject;
-            }
-            yield "]";
+            $queryBuilder = $model->createSelectQueryBuilder($this->connection, $query);
+            return $this->pager->createResponse($queryBuilder, $query);
         } catch (DbalException $e) {
             throw new InternalServerErrorException($e->getMessage(), previous: $e);
         }

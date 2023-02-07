@@ -8,7 +8,6 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\Types;
-use Nemo64\RestToSql\Exception\ApiRelatedException;
 use Nemo64\RestToSql\Exception\InternalServerErrorException;
 
 readonly class TableModel extends AbstractModel

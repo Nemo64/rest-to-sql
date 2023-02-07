@@ -170,7 +170,7 @@ abstract readonly class AbstractSingleProperty implements PropertyInterface
         return []; // TODO implement sort filters
     }
 
-    final public function getOpenApiFilterParameters(string $propertyPath): array
+    final public function getOpenApiParameters(string $propertyPath): array
     {
         $parameters = [];
 

@@ -56,7 +56,7 @@ readonly class AutoIncrementIdProperty implements PropertyInterface
         ];
     }
 
-    public function getOpenApiFilterParameters(string $propertyPath): array
+    public function getOpenApiParameters(string $propertyPath): array
     {
         $result = [];
 
