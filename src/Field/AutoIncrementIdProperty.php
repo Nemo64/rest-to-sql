@@ -47,7 +47,7 @@ readonly class AutoIncrementIdProperty implements PropertyInterface
         return []; // auto increment fields are not updatable
     }
 
-    public function getOpenApiFieldSchema(): array
+    public function getOpenApiSchema(array &$components): array
     {
         return [
             'type' => 'integer',
@@ -56,7 +56,7 @@ readonly class AutoIncrementIdProperty implements PropertyInterface
         ];
     }
 
-    public function getOpenApiParameters(string $propertyPath): array
+    public function getOpenApiParameters(array &$components, string $propertyPath): array
     {
         $result = [];
 

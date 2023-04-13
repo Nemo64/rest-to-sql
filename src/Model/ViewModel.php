@@ -44,7 +44,7 @@ readonly class ViewModel extends AbstractModel
         }
 
         $select = [];
-        foreach ($this->getProperties() as $field) {
+        foreach ($this->properties as $field) {
             /** @noinspection NullPointerExceptionInspection */
             $select[] = $connection->getDatabasePlatform()->quoteStringLiteral($field->getPropertyName());
             $select[] = $field->getSelectExpression($connection, $this->getModelName());

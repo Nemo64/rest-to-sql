@@ -18,17 +18,19 @@ interface PropertyInterface
     public function applySqlFieldSchema(Table $table): void;
 
     /**
-     * @return array
+     * @param array $components Gives access to the components portion of the schema.
+     * @return array The openapi/json schema of the field.
      * @see https://swagger.io/specification/#schema-object
      */
-    public function getOpenApiFieldSchema(): array;
+    public function getOpenApiSchema(array &$components): array;
 
     /**
+     * @param array $components Gives access to the components portion of the schema.
      * @param string $propertyPath The property path to the field. This is used to generate the filter parameters.
      * @return array
      * @see https://swagger.io/specification/#schema-object
      */
-    public function getOpenApiParameters(string $propertyPath): array;
+    public function getOpenApiParameters(array &$components, string $propertyPath): array;
 
     /**
      * @param QueryBuilder $queryBuilder The query builder that is used to build the query.

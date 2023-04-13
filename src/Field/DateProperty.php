@@ -31,9 +31,9 @@ readonly class DateProperty extends AbstractSingleProperty
         return 'date';
     }
 
-    public function getOpenApiFieldSchema(): array
+    public function getOpenApiSchema(array &$components): array
     {
-        $schema = parent::getOpenApiFieldSchema();
+        $schema = parent::getOpenApiSchema($components);
         $schema['format'] = 'date';
 
         if ($this->default !== null) {

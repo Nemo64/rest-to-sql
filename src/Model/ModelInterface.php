@@ -20,11 +20,6 @@ interface ModelInterface extends PropertyInterface
 
     public function canDelete(): bool;
 
-    /** @return PropertyInterface[] */
-    public function getProperties(): array;
-
-    public function applyOpenApiComponents(array &$schema): void;
-
     public function applySqlTableSchema(Schema $schema): void;
 
     /**

@@ -38,7 +38,7 @@ readonly class StringProperty extends AbstractSingleProperty
 
     protected function getDoctrineType(): string
     {
-        if ($this->searchable) {
+        if ($this->indexed || $this->searchable) {
             return Types::STRING;
         }
 
@@ -61,9 +61,9 @@ readonly class StringProperty extends AbstractSingleProperty
         return $options;
     }
 
-    public function getOpenApiFieldSchema(): array
+    public function getOpenApiSchema(array &$components): array
     {
-        $schema = parent::getOpenApiFieldSchema();
+        $schema = parent::getOpenApiSchema($components);
 
         if ($this->enum !== null) {
             $schema['enum'] = $this->enum;
@@ -87,7 +87,7 @@ readonly class StringProperty extends AbstractSingleProperty
         return $schema;
     }
 
-    protected function getOpenApiSearchParameters(string $propertyPath): array
+    protected function getOpenApiSearchParameters(array &$components, string $propertyPath): array
     {
         return [
             [

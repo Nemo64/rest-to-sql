@@ -17,7 +17,7 @@ use RuntimeException;
 abstract readonly class AbstractModel implements ModelInterface
 {
     /** @var PropertyInterface[] */
-    private array $properties;
+    public array $properties;
     public string $name;
     public string $idProperty;
     public ?string $parentProperty;
@@ -78,33 +78,29 @@ abstract readonly class AbstractModel implements ModelInterface
         return false;
     }
 
-    /** @return PropertyInterface[] */
-    public function getProperties(): array
+    public function getOpenApiSchema(array &$components): array
     {
-        return $this->properties;
-    }
-
-    public function applyOpenApiComponents(array &$schema): void
-    {
-        $schema['components']['schemas'][$this->getModelName()] = [
+        $components['schemas'][$this->getModelName()] = [
             'type' => 'object',
             'properties' => [],
         ];
 
-        foreach ($this->getProperties() as $field) {
-            if ($field instanceof ModelInterface) {
-                $field->applyOpenApiComponents($schema);
-            }
-
-            $schema['components']['schemas'][$this->getModelName()]['properties'][$field->getPropertyName()] = $field->getOpenApiFieldSchema();
+        foreach ($this->properties as $field) {
+            $fieldSchema = $field->getOpenApiSchema($components);
+            $components['schemas'][$this->getModelName()]['properties'][$field->getPropertyName()] = $fieldSchema;
         }
+
+        return [
+            'type' => 'array',
+            'items' => ['$ref' => '#/components/schemas/' . $this->getModelName()],
+        ];
     }
 
     public function applySqlFieldSchema(Table $table): void
     {
     }
 
-    public function getOpenApiParameters(string $propertyPath): array
+    public function getOpenApiParameters(array &$components, string $propertyPath): array
     {
         // TODO it should be possible to propagate the filters using joins in the conditions
         if (!empty($propertyPath)) {
@@ -112,7 +108,7 @@ abstract readonly class AbstractModel implements ModelInterface
         }
 
         $parameters = [];
-        foreach ($this->getProperties() as $field) {
+        foreach ($this->properties as $field) {
             $fieldPropertyPath = ltrim("$propertyPath.{$field->getPropertyName()}", '.');
             foreach ($field->getOpenApiParameters($fieldPropertyPath) as $parameter) {
                 $parameters[] = $parameter;
@@ -129,7 +125,7 @@ abstract readonly class AbstractModel implements ModelInterface
             return;
         }
 
-        foreach ($this->getProperties() as $field) {
+        foreach ($this->properties as $field) {
             $fieldPropertyPath = ltrim("$propertyPath.{$field->getPropertyName()}", '.');
             $field->applyFilters($queryBuilder, $alias, $fieldPropertyPath, $query);
         }
@@ -160,14 +156,5 @@ abstract readonly class AbstractModel implements ModelInterface
     public function getUpdateValues(Connection $connection, mixed $old, mixed $new): array
     {
         return [];
-    }
-
-
-    public function getOpenApiFieldSchema(): array
-    {
-        return [
-            'type' => 'array',
-            'items' => ['$ref' => '#/components/schemas/' . $this->getModelName()],
-        ];
     }
 }

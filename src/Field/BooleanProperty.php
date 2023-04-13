@@ -56,9 +56,9 @@ readonly class BooleanProperty extends AbstractSingleProperty
         return (bool)$value;
     }
 
-    public function getOpenApiFieldSchema(): array
+    public function getOpenApiSchema(array &$components): array
     {
-        $result = parent::getOpenApiFieldSchema();
+        $result = parent::getOpenApiSchema($components);
         $result['type'] = 'boolean';
 
         if ($this->default !== null) {
@@ -68,7 +68,7 @@ readonly class BooleanProperty extends AbstractSingleProperty
         return $result;
     }
 
-    protected function getOpenApiSearchParameters(string $propertyPath): array
+    protected function getOpenApiSearchParameters(array &$components, string $propertyPath): array
     {
         return [
             [

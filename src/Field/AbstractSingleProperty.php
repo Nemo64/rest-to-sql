@@ -69,7 +69,7 @@ abstract readonly class AbstractSingleProperty implements PropertyInterface
         }
     }
 
-    public function getOpenApiFieldSchema(): array
+    public function getOpenApiSchema(array &$components): array
     {
         $result = [
             'type' => 'string',
@@ -147,7 +147,7 @@ abstract readonly class AbstractSingleProperty implements PropertyInterface
     }
 
 
-    protected function getOpenApiSearchParameters(string $propertyPath): array
+    protected function getOpenApiSearchParameters(array &$components, string $propertyPath): array
     {
         $filterName = $propertyPath . '[]';
         return [
@@ -165,21 +165,21 @@ abstract readonly class AbstractSingleProperty implements PropertyInterface
         ];
     }
 
-    protected function getOpenApiSortParameters(string $propertyPath): array
+    protected function getOpenApiSortParameters(array &$components, string $propertyPath): array
     {
         return []; // TODO implement sort filters
     }
 
-    final public function getOpenApiParameters(string $propertyPath): array
+    final public function getOpenApiParameters(array &$components, string $propertyPath): array
     {
         $parameters = [];
 
         if ($this->searchable) {
-            array_push($parameters, ...$this->getOpenApiSearchParameters($propertyPath));
+            array_push($parameters, ...$this->getOpenApiSearchParameters($components, $propertyPath));
         }
 
         if ($this->sortable) {
-            array_push($parameters, ...$this->getOpenApiSortParameters($propertyPath));
+            array_push($parameters, ...$this->getOpenApiSortParameters($components, $propertyPath));
         }
 
         return $parameters;

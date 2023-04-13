@@ -83,8 +83,11 @@ readonly class RestToSql implements RestToSqlInterface
         ];
 
         foreach ($this->models as $model) {
-            $model->applyOpenApiComponents($schema);
             $path = "$pathPrefix/{$model->getModelName()}";
+            $fieldSchema = $model->getOpenApiSchema($schema['components'])['items'] ?? null;
+            if (empty($fieldSchema)) {
+                throw new \RuntimeException("The model {$model->getModelName()} must return an array schema.");
+            }
 
             if ($model->canSelect()) {
                 $schema['paths'][$path]['get'] = [
@@ -94,7 +97,7 @@ readonly class RestToSql implements RestToSqlInterface
                         ...$this->pager->getOpenApiParameters(),
                     ],
                     'responses' => [
-                        '200' => ['content' => ['application/json' => ['schema' => $this->pager->getOpenApiSchema(['$ref' => "#/components/schemas/{$model->getModelName()}"])]]],
+                        '200' => ['content' => ['application/json' => ['schema' => $this->pager->getOpenApiSchema($fieldSchema)]]],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => "#/components/schemas/error"]]]],
                     ],
                 ];

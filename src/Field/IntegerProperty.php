@@ -43,9 +43,9 @@ readonly class IntegerProperty extends AbstractSingleProperty
         return $options;
     }
 
-    public function getOpenApiFieldSchema(): array
+    public function getOpenApiSchema(array &$components): array
     {
-        $schema = parent::getOpenApiFieldSchema();
+        $schema = parent::getOpenApiSchema($components);
         $schema['type'] = 'integer';
         $schema['format'] = match ($this->getDoctrineType()) {
             Types::BIGINT => 'int64',

@@ -47,7 +47,7 @@ readonly class TableModel extends AbstractModel
             );
         }
 
-        foreach ($this->getProperties() as $field) {
+        foreach ($this->properties as $field) {
             if ($field instanceof ModelInterface) {
                 $field->applySqlTableSchema($schema);
             }
@@ -67,7 +67,7 @@ readonly class TableModel extends AbstractModel
         }
 
         $select = [];
-        foreach ($this->getProperties() as $field) {
+        foreach ($this->properties as $field) {
             /** @noinspection NullPointerExceptionInspection */
             $select[] = $connection->getDatabasePlatform()->quoteStringLiteral($field->getPropertyName());
             $select[] = $field->getSelectExpression($connection, $this->getModelName());
@@ -91,7 +91,7 @@ readonly class TableModel extends AbstractModel
             }
 
             $fields = [];
-            foreach ($this->getProperties() as $key => $field) {
+            foreach ($this->properties as $key => $field) {
                 if (array_key_exists($key, $newRecord)) {
                     $fields += $field->getUpdateValues($connection, $oldRecord[$key] ?? null, $newRecord[$key]);
                 }
@@ -147,7 +147,7 @@ readonly class TableModel extends AbstractModel
 
     private function executeSubUpdates(Connection $connection, mixed $parentId, ?array $oldRecord, ?array $newRecord): void
     {
-        foreach ($this->getProperties() as $key => $field) {
+        foreach ($this->properties as $key => $field) {
             // TODO checking for ModelInterface breaks recursion and will prevent embeddable types
             if (!$field instanceof ModelInterface) {
                 continue;
