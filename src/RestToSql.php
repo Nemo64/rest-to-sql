@@ -93,11 +93,11 @@ readonly class RestToSql implements RestToSqlInterface
                 $schema['paths'][$path]['get'] = [
                     'tags' => [$model->getModelName()],
                     'parameters' => [
-                        ...$model->getOpenApiParameters(''),
+                        ...$model->getOpenApiParameters($schema['components'], ''),
                         ...$this->pager->getOpenApiParameters(),
                     ],
                     'responses' => [
-                        '200' => ['content' => ['application/json' => ['schema' => $this->pager->getOpenApiSchema($fieldSchema)]]],
+                        '200' => ['content' => ['application/json' => ['schema' => $this->pager->getOpenApiSchema($schema['components'], $fieldSchema)]]],
                         '403' => ['content' => ['application/json' => ['schema' => ['$ref' => "#/components/schemas/error"]]]],
                     ],
                 ];

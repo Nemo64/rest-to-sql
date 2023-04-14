@@ -11,7 +11,7 @@ readonly class NoopPager implements PagerInterface
         return [];
     }
 
-    public function getOpenApiSchema(array $objectSchema): array
+    public function getOpenApiSchema(array &$components, array $objectSchema): array
     {
         return ['type' => 'array', 'items' => $objectSchema];
     }

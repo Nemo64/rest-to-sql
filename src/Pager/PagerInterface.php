@@ -9,7 +9,7 @@ interface PagerInterface
 {
     public function getOpenApiParameters(): array;
 
-    public function getOpenApiSchema(array $objectSchema): array;
+    public function getOpenApiSchema(array &$components, array $objectSchema): array;
 
     /**
      * @throws DbalException

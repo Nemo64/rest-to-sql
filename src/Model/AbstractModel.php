@@ -110,7 +110,7 @@ abstract readonly class AbstractModel implements ModelInterface
         $parameters = [];
         foreach ($this->properties as $field) {
             $fieldPropertyPath = ltrim("$propertyPath.{$field->getPropertyName()}", '.');
-            foreach ($field->getOpenApiParameters($fieldPropertyPath) as $parameter) {
+            foreach ($field->getOpenApiParameters($components, $fieldPropertyPath) as $parameter) {
                 $parameters[] = $parameter;
             }
         }

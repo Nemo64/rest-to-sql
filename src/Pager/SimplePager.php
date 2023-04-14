@@ -32,7 +32,7 @@ readonly class SimplePager implements PagerInterface
         ];
     }
 
-    public function getOpenApiSchema(array $objectSchema): array
+    public function getOpenApiSchema(array &$components, array $objectSchema): array
     {
         return [
             'type' => 'object',
