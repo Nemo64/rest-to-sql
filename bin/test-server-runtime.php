@@ -14,7 +14,8 @@ if ($_SERVER['REQUEST_URI'] === "/api") {
     exit;
 }
 
-$response = $restToSql->handle(\GuzzleHttp\Psr7\ServerRequest::fromGlobals());
+$handler = new \Nemo64\RestToSql\Psr17RequestHandler($restToSql);
+$response = $handler->handle(\GuzzleHttp\Psr7\ServerRequest::fromGlobals());
 header(sprintf(
     'HTTP/%s %s %s',
     $response->getProtocolVersion(),
